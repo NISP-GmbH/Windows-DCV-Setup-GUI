@@ -184,7 +184,7 @@ $serviceName = "dcvserver"
 # Define the main form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "DCV Registry Manager by ni-sp.com"
-$form.Size = New-Object System.Drawing.Size(850, 350)
+$form.Size = New-Object System.Drawing.Size(850, 430) # Increased width and height to accommodate more buttons
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedDialog"
 $form.MaximizeBox = $false
@@ -212,14 +212,17 @@ $buttonTexts = @(
     "Enable DCV Server debug mode",
     "Disable DCV Server debug mode",
     "Open DCV Server log directory",
-    "Set mouse wheel sensitivity"
+    "Set mouse wheel sensitivity",
+    "Set max-head-resolution",
+    "Set web-client-max-head-resolution",
+    "Set enable-yuv444-encoding"
 )
 
 # Initialize button array
 $buttons = @()
 
 # Calculate number of rows based on columns
-$rows = [math]::Ceiling($buttonTexts.Count / $columns) # For 15 buttons and 3 columns, $rows = 5
+$rows = [math]::Ceiling($buttonTexts.Count / $columns) # For 18 buttons and 3 columns, $rows = 6
 
 # Create and position buttons in three columns
 for ($i = 0; $i -lt $buttonTexts.Count; $i++) {
@@ -246,6 +249,8 @@ for ($i = 0; $i -lt $buttonTexts.Count; $i++) {
 function Show-Warning {
     [System.Windows.Forms.MessageBox]::Show("Please restart the DCV Server service for changes to take effect.", "Action Required", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
 }
+
+# ----------------------- Existing Button Handlers -----------------------
 
 # Button 1: Enable Dynamic console session
 $buttons[0].Add_Click({
@@ -414,7 +419,7 @@ $buttons[2].Add_Click({
     }
 })
 
-# Button 4: Disable QUIC/UDP mode (Modified)
+# Button 4: Disable QUIC/UDP mode
 $buttons[3].Add_Click({
     Show-DebugMessage -Message "Disable QUIC/UDP mode button clicked."
     try {
@@ -650,6 +655,7 @@ $buttons[11].Add_Click({
         $debugRegPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\log"
 
         Show-DebugMessage -Message "Ensuring registry path: $debugRegPath"
+        # Ensure the debug registry path exists
         Ensure-RegistryPath -Path $debugRegPath
 
         # Set level to "debug" using New-ItemProperty
@@ -746,6 +752,193 @@ $buttons[14].Add_Click({
         [System.Windows.Forms.MessageBox]::Show("An error occurred while setting mouse wheel sensitivity: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 })
+
+# ----------------------- New Button Handlers -----------------------
+
+# Button 16: Set max-head-resolution
+$buttons[15].Add_Click({
+    Show-DebugMessage -Message "Set max-head-resolution button clicked."
+    while ($true) {
+        $widthInput = Show-InputBox -Message "Please enter the screen width (integer):" -Title "Set max-head-resolution - Width"
+        if ($widthInput -eq $null) {
+            # User canceled the input
+            return
+        }
+
+        $widthTrimmed = $widthInput.Trim()
+        $isWidthInteger = [int]::TryParse($widthTrimmed, [ref]$null)
+        if (-not $isWidthInteger) {
+            [System.Windows.Forms.MessageBox]::Show("Invalid input. Please enter a valid integer for width.", "Invalid Input", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            continue
+        }
+
+        $heightInput = Show-InputBox -Message "Please enter the screen height (integer):" -Title "Set max-head-resolution - Height"
+        if ($heightInput -eq $null) {
+            # User canceled the input
+            return
+        }
+
+        $heightTrimmed = $heightInput.Trim()
+        $isHeightInteger = [int]::TryParse($heightTrimmed, [ref]$null)
+        if (-not $isHeightInteger) {
+            [System.Windows.Forms.MessageBox]::Show("Invalid input. Please enter a valid integer for height.", "Invalid Input", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            continue
+        }
+
+        # Both inputs are valid integers
+        $width = [int]$widthTrimmed
+        $height = [int]$heightTrimmed
+        break
+    }
+
+    try {
+        $displayPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+
+        Show-DebugMessage -Message "Ensuring registry path: $displayPath"
+        # Ensure the display registry path exists
+        Ensure-RegistryPath -Path $displayPath
+
+        # Set max-head-resolution string
+        $resolutionValue = "($width,$height)"
+        New-ItemProperty -Path $displayPath -Name "max-head-resolution" -Value $resolutionValue -PropertyType String -Force | Out-Null
+        Show-DebugMessage -Message "Set 'max-head-resolution' to '$resolutionValue'."
+
+        Show-Warning
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+# Button 17: Set web-client-max-head-resolution
+$buttons[16].Add_Click({
+    Show-DebugMessage -Message "Set web-client-max-head-resolution button clicked."
+    while ($true) {
+        $widthInput = Show-InputBox -Message "Please enter the web client screen width (integer):" -Title "Set web-client-max-head-resolution - Width"
+        if ($widthInput -eq $null) {
+            # User canceled the input
+            return
+        }
+
+        $widthTrimmed = $widthInput.Trim()
+        $isWidthInteger = [int]::TryParse($widthTrimmed, [ref]$null)
+        if (-not $isWidthInteger) {
+            [System.Windows.Forms.MessageBox]::Show("Invalid input. Please enter a valid integer for width.", "Invalid Input", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            continue
+        }
+
+        $heightInput = Show-InputBox -Message "Please enter the web client screen height (integer):" -Title "Set web-client-max-head-resolution - Height"
+        if ($heightInput -eq $null) {
+            # User canceled the input
+            return
+        }
+
+        $heightTrimmed = $heightInput.Trim()
+        $isHeightInteger = [int]::TryParse($heightTrimmed, [ref]$null)
+        if (-not $isHeightInteger) {
+            [System.Windows.Forms.MessageBox]::Show("Invalid input. Please enter a valid integer for height.", "Invalid Input", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            continue
+        }
+
+        # Both inputs are valid integers
+        $width = [int]$widthTrimmed
+        $height = [int]$heightTrimmed
+        break
+    }
+
+    try {
+        $displayPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+
+        Show-DebugMessage -Message "Ensuring registry path: $displayPath"
+        # Ensure the display registry path exists
+        Ensure-RegistryPath -Path $displayPath
+
+        # Set web-client-max-head-resolution string
+        $resolutionValue = "($width,$height)"
+        New-ItemProperty -Path $displayPath -Name "web-client-max-head-resolution" -Value $resolutionValue -PropertyType String -Force | Out-Null
+        Show-DebugMessage -Message "Set 'web-client-max-head-resolution' to '$resolutionValue'."
+
+        Show-Warning
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+# Button 18: Set enable-yuv444-encoding
+$buttons[17].Add_Click({
+    Show-DebugMessage -Message "Set enable-yuv444-encoding button clicked."
+    $options = @('always-on', 'always-off', 'default-on', 'default-off')
+
+    # Create a form with ComboBox
+    $formEncoding = New-Object System.Windows.Forms.Form
+    $formEncoding.Text = "Set enable-yuv444-encoding"
+    $formEncoding.Size = New-Object System.Drawing.Size(300, 150)
+    $formEncoding.StartPosition = "CenterScreen"
+    $formEncoding.FormBorderStyle = "FixedDialog"
+    $formEncoding.MaximizeBox = $false
+    $formEncoding.MinimizeBox = $false
+    $formEncoding.TopMost = $true
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = "Select an option:"
+    $label.AutoSize = $true
+    $label.Location = New-Object System.Drawing.Point(10,20)
+    $formEncoding.Controls.Add($label)
+
+    $comboBox = New-Object System.Windows.Forms.ComboBox
+    $comboBox.DropDownStyle = "DropDownList"
+    $comboBox.Items.AddRange($options)
+    $comboBox.Location = New-Object System.Drawing.Point(10,50)
+    $comboBox.Width = 260
+    $formEncoding.Controls.Add($comboBox)
+
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = "OK"
+    $okButton.Location = New-Object System.Drawing.Point(120,80)
+    $okButton.Add_Click({
+        if ($comboBox.SelectedItem -ne $null) {
+            $formEncoding.DialogResult = "OK"
+            $formEncoding.Close()
+        } else {
+            [System.Windows.Forms.MessageBox]::Show("Please select an option.", "Input Required", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+    $formEncoding.Controls.Add($okButton)
+
+    $cancelButton = New-Object System.Windows.Forms.Button
+    $cancelButton.Text = "Cancel"
+    $cancelButton.Location = New-Object System.Drawing.Point(200,80)
+    $cancelButton.Add_Click({ $formEncoding.DialogResult = "Cancel"; $formEncoding.Close() })
+    $formEncoding.Controls.Add($cancelButton)
+
+    $result = $formEncoding.ShowDialog()
+    if ($result -ne "OK") {
+        return
+    }
+
+    $selectedOption = $comboBox.SelectedItem
+    try {
+        $displayPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+
+        Show-DebugMessage -Message "Ensuring registry path: $displayPath"
+        # Ensure the display registry path exists
+        Ensure-RegistryPath -Path $displayPath
+
+        # Set enable-yuv444-encoding string with single quotes
+        $encodingValue = "'$selectedOption'"
+        New-ItemProperty -Path $displayPath -Name "enable-yuv444-encoding" -Value $encodingValue -PropertyType String -Force | Out-Null
+        Show-DebugMessage -Message "Set 'enable-yuv444-encoding' to $encodingValue."
+
+        Show-Warning
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+# -------------------- Existing Button Handlers Continued --------------------
+# Note: If there are more existing buttons beyond Button 15 and 18, you can continue adding their handlers here.
 
 # Display the form
 $form.Add_Shown({$form.Activate()})
