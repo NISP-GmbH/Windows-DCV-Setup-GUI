@@ -17,4 +17,4 @@ or execute with debug mode enabled:
 .\windows_dcv_setup.ps1 -Debug
 ```
 
-Using debug mode, all steps execute by the script will be checked, so you can troubleshoot a possible issue with your Windows Registry.
+Using debug mode, all steps executed by the script will be checked, so you can troubleshoot a possible issue with your Windows Registry.
