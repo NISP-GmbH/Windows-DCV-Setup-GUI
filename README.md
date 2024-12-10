@@ -1,5 +1,5 @@
 # Preview
-![screen](https://github.com/user-attachments/assets/05aa2512-2746-4495-8b60-0628e24846fd)
+![Captura de Tela 2024-12-11 às 00 17 16](https://github.com/user-attachments/assets/2ecc847a-0d67-48e2-84c0-48d32acb0d6e)
 
 # How to execute the GUI
 
@@ -17,4 +17,4 @@ or execute with debug mode enabled:
 .\windows_dcv_setup.ps1 -Debug
 ```
 
-Using debug mode, all steps execute by the script will be checked, so you can troubleshoot a possible issue with your Windows Registry.
+Using debug mode, all steps executed by the script will be checked, so you can troubleshoot a possible issue with your Windows Registry.
