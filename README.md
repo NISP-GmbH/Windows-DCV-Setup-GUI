@@ -1,5 +1,5 @@
 # Preview
-![Captura de Tela 2024-12-05 às 14 18 35](https://github.com/user-attachments/assets/12b0980c-e202-4016-8a8e-535c2f0545a9)
+![Captura de Tela 2024-12-11 às 00 17 16](https://github.com/user-attachments/assets/2ecc847a-0d67-48e2-84c0-48d32acb0d6e)
 
 # How to execute the GUI
 
