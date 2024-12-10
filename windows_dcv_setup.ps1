@@ -184,7 +184,7 @@ $serviceName = "dcvserver"
 # Define the main form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "DCV Registry Manager by ni-sp.com"
-$form.Size = New-Object System.Drawing.Size(850, 430) # Increased width and height to accommodate more buttons
+$form.Size = New-Object System.Drawing.Size(1150, 430) # Increased width to accommodate more buttons
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedDialog"
 $form.MaximizeBox = $false
@@ -195,7 +195,7 @@ $form.TopMost = $true
 $buttonWidth = 250
 $buttonHeight = 40
 $buttonMargin = 20
-$columns = 3
+$columns = 4 # Increased columns to 4 for more buttons
 # Adding new buttons
 $buttonTexts = @(
     "Enable Dynamic console session",
@@ -215,16 +215,20 @@ $buttonTexts = @(
     "Set mouse wheel sensitivity",
     "Set max-head-resolution",
     "Set web-client-max-head-resolution",
-    "Set enable-yuv444-encoding"
+    "Set enable-yuv444-encoding",
+    "Enable Windows DCV Autologin",
+    "Disable Windows DCV Autologin",
+    "Enable IDD driver",
+    "Disable IDD driver"
 )
 
 # Initialize button array
 $buttons = @()
 
 # Calculate number of rows based on columns
-$rows = [math]::Ceiling($buttonTexts.Count / $columns) # For 18 buttons and 3 columns, $rows = 6
+$rows = [math]::Ceiling($buttonTexts.Count / $columns) # Updated for 22 buttons and 4 columns, $rows = 6
 
-# Create and position buttons in three columns
+# Create and position buttons in four columns
 for ($i = 0; $i -lt $buttonTexts.Count; $i++) {
     $btn = New-Object System.Windows.Forms.Button
     $btn.Size = New-Object System.Drawing.Size($buttonWidth, $buttonHeight)
@@ -753,8 +757,6 @@ $buttons[14].Add_Click({
     }
 })
 
-# ----------------------- New Button Handlers -----------------------
-
 # Button 16: Set max-head-resolution
 $buttons[15].Add_Click({
     Show-DebugMessage -Message "Set max-head-resolution button clicked."
@@ -937,8 +939,126 @@ $buttons[17].Add_Click({
     }
 })
 
-# -------------------- Existing Button Handlers Continued --------------------
-# Note: If there are more existing buttons beyond Button 15 and 18, you can continue adding their handlers here.
+
+# Button 19: Enable Windows DCV Autologin
+$buttons[18].Add_Click({
+    Show-DebugMessage -Message "Enable Windows DCV Autologin button clicked."
+    try {
+        # Create authenticator key
+        $authenticatorPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\security"
+        Ensure-RegistryPath -Path $authenticatorPath
+        New-ItemProperty -Path $authenticatorPath -Name "authentication" -Value "system" -PropertyType String -Force | Out-Null
+        Show-DebugMessage -Message "Set 'authenticator' to 'system' in $authenticatorPath."
+
+        # Create Disabled key in Credential Providers
+        $credentialProviderPath = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{8A2C93D0-D55F-4045-99D7-B27F5E263407}"
+        Ensure-RegistryPath -Path $credentialProviderPath
+        New-ItemProperty -Path $credentialProviderPath -Name "Disabled" -Value 0 -PropertyType DWord -Force | Out-Null
+        Show-DebugMessage -Message "Set 'Disabled' to 0 in $credentialProviderPath."
+
+        Show-Warning
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred while enabling Windows DCV Autologin: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+# Button 20: Disable Windows DCV Autologin
+$buttons[19].Add_Click({
+    Show-DebugMessage -Message "Disable Windows DCV Autologin button clicked."
+    try {
+        # Set Disabled key in Credential Providers to 1
+        $credentialProviderPath = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{8A2C93D0-D55F-4045-99D7-B27F5E263407}"
+        Ensure-RegistryPath -Path $credentialProviderPath
+        New-ItemProperty -Path $credentialProviderPath -Name "Disabled" -Value 1 -PropertyType DWord -Force | Out-Null
+        Show-DebugMessage -Message "Set 'Disabled' to 1 in $credentialProviderPath."
+
+        Show-Warning
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred while disabling Windows DCV Autologin: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+# Button 21: Enable IDD driver
+$buttons[20].Add_Click({
+    Show-DebugMessage -Message "Enable IDD driver button clicked."
+
+    # Create a confirmation dialog
+    $formConfirm = New-Object System.Windows.Forms.Form
+    $formConfirm.Text = "Enable IDD Driver"
+    $formConfirm.Size = New-Object System.Drawing.Size(400, 150)
+    $formConfirm.StartPosition = "CenterScreen"
+    $formConfirm.FormBorderStyle = "FixedDialog"
+    $formConfirm.MaximizeBox = $false
+    $formConfirm.MinimizeBox = $false
+    $formConfirm.TopMost = $true
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = "Ensure that the IDD driver is installed before proceeding."
+    $label.AutoSize = $true
+    $label.Location = New-Object System.Drawing.Point(10,20)
+    $formConfirm.Controls.Add($label)
+
+    $continueButton = New-Object System.Windows.Forms.Button
+    $continueButton.Text = "Continue"
+    $continueButton.Location = New-Object System.Drawing.Point(200, 60)
+    $continueButton.Add_Click({ $formConfirm.DialogResult = "OK"; $formConfirm.Close() })
+    $formConfirm.Controls.Add($continueButton)
+
+    $cancelButton = New-Object System.Windows.Forms.Button
+    $cancelButton.Text = "Cancel"
+    $cancelButton.Location = New-Object System.Drawing.Point(290, 60)
+    $cancelButton.Add_Click({ $formConfirm.DialogResult = "Cancel"; $formConfirm.Close() })
+    $formConfirm.Controls.Add($cancelButton)
+
+    $result = $formConfirm.ShowDialog()
+    if ($result -ne "OK") {
+        return
+    }
+
+    try {
+        # Create layout-managers key
+        $layoutManagersPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+        Ensure-RegistryPath -Path $layoutManagersPath
+        $layoutManagersValue = "['nvapi', 'amd', 'dod', 'winapi']"
+        New-ItemProperty -Path $layoutManagersPath -Name "layout-managers" -Value $layoutManagersValue -PropertyType String -Force | Out-Null
+        Show-DebugMessage -Message "Set 'layout-managers' to $layoutManagersValue in $layoutManagersPath."
+
+        # Create framebuffer-readers key
+        $framebufferReadersPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+        $framebufferReadersValue = "['desktopduplication', 'gdi']"
+        New-ItemProperty -Path $framebufferReadersPath -Name "framebuffer-readers" -Value $framebufferReadersValue -PropertyType String -Force | Out-Null
+        Show-DebugMessage -Message "Set 'framebuffer-readers' to $framebufferReadersValue in $framebufferReadersPath."
+
+        Show-Warning
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred while enabling IDD driver: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+# Button 22: Disable IDD driver
+$buttons[21].Add_Click({
+    Show-DebugMessage -Message "Disable IDD driver button clicked."
+    try {
+        $displayPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+
+        if (Test-Path $displayPath) {
+            Remove-ItemProperty -Path $displayPath -Name "layout-managers" -ErrorAction SilentlyContinue
+            Show-DebugMessage -Message "Removed 'layout-managers' from $displayPath."
+            Remove-ItemProperty -Path $displayPath -Name "framebuffer-readers" -ErrorAction SilentlyContinue
+            Show-DebugMessage -Message "Removed 'framebuffer-readers' from $displayPath."
+        } else {
+            Show-DebugMessage -Message "Registry path does not exist: $displayPath"
+        }
+
+        Show-Warning
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred while disabling IDD driver: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
 
 # Display the form
 $form.Add_Shown({$form.Activate()})
