@@ -18,3 +18,9 @@ or execute with debug mode enabled:
 ```
 
 Using debug mode, all steps executed by the script will be checked, so you can troubleshoot a possible issue with your Windows Registry.
+
+# FAQ
+
+## My antivirus/antimalware said this script is a malware
+
+It is false-positive! As this file need to change Windows registries, some antivirus/antimalwares can wrongly think this is a bad script. You can check the code. And if you still have some concern, you can see the file code in github and just copy the commands that you need to execute.
