@@ -219,7 +219,8 @@ $buttonTexts = @(
     "Enable Windows DCV Autologin",
     "Disable Windows DCV Autologin",
     "Enable IDD driver",
-    "Disable IDD driver"
+    "Disable IDD driver",
+    "Advanced features"
 )
 
 # Initialize button array
@@ -234,17 +235,23 @@ for ($i = 0; $i -lt $buttonTexts.Count; $i++) {
     $btn.Size = New-Object System.Drawing.Size($buttonWidth, $buttonHeight)
 
     # Determine column and row
-    $column = [math]::Floor($i / $rows)
-    $row = $i % $rows
+    $column = $i % $columns
+    $row = [math]::Floor($i / $columns)
 
     # Calculate X and Y positions
     $x = $buttonMargin + ($column * ($buttonWidth + $buttonMargin))
     $y = $buttonMargin + ($row * ($buttonHeight + $buttonMargin))
 
     # Assign location
-    $btn.Location = New-Object System.Drawing.Point -ArgumentList $x, $y
+    $btn.Location = New-Object System.Drawing.Point($x, $y)
     $btn.Text = $buttonTexts[$i]
     $btn.Name = "Button$i"
+
+    # Set background color for "Advanced features" button
+    if ($btn.Text -eq "Advanced features") {
+        $btn.BackColor = [System.Drawing.Color]::White
+    }
+
     $form.Controls.Add($btn)
     $buttons += $btn
 }
@@ -252,6 +259,60 @@ for ($i = 0; $i -lt $buttonTexts.Count; $i++) {
 # Define helper function to show warning message
 function Show-Warning {
     [System.Windows.Forms.MessageBox]::Show("Please restart the DCV Server service for changes to take effect.", "Action Required", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+}
+
+# Define functions for actions to avoid code duplication
+function Enable-IDDDriver {
+    Show-DebugMessage -Message "Enabling IDD driver."
+
+    $displayPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+
+    if (Test-Path $displayPath) {
+        Remove-ItemProperty -Path $displayPath -Name "layout-managers" -ErrorAction SilentlyContinue
+        Show-DebugMessage -Message "Removed 'layout-managers' from $displayPath."
+        Remove-ItemProperty -Path $displayPath -Name "framebuffer-readers" -ErrorAction SilentlyContinue
+        Show-DebugMessage -Message "Removed 'framebuffer-readers' from $displayPath."
+    } else {
+        Show-DebugMessage -Message "Registry path does not exist: $displayPath"
+    }
+
+
+}
+
+function Disable-IDDDriver {
+    Show-DebugMessage -Message "Disabling IDD driver."
+    # Create layout-managers key
+    $layoutManagersPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+    Ensure-RegistryPath -Path $layoutManagersPath
+    $layoutManagersValue = "['nvapi', 'amd', 'dod', 'winapi']"
+    New-ItemProperty -Path $layoutManagersPath -Name "layout-managers" -Value $layoutManagersValue -PropertyType String -Force | Out-Null
+    Show-DebugMessage -Message "Set 'layout-managers' to $layoutManagersValue in $layoutManagersPath."
+
+    # Create framebuffer-readers key
+    $framebufferReadersValue = "['desktopduplication', 'gdi']"
+    New-ItemProperty -Path $layoutManagersPath -Name "framebuffer-readers" -Value $framebufferReadersValue -PropertyType String -Force | Out-Null
+    Show-DebugMessage -Message "Set 'framebuffer-readers' to $framebufferReadersValue in $layoutManagersPath."
+}
+
+function Restart-DCVServer {
+    param(
+        [string]$ServiceName = "dcvserver"
+    )
+
+    Show-DebugMessage -Message "Restarting DCV Server."
+    try {
+        # Verify that the service exists
+        if (-not (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue)) {
+            [System.Windows.Forms.MessageBox]::Show("Service '$ServiceName' does not exist.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
+        }
+
+        Restart-Service -Name $ServiceName -Force -ErrorAction Stop
+        Show-DebugMessage -Message "DCV Server service restarted successfully."
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred while restarting DCV Server: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
 }
 
 # ----------------------- Existing Button Handlers -----------------------
@@ -984,38 +1045,61 @@ $buttons[19].Add_Click({
 $buttons[20].Add_Click({
     Show-DebugMessage -Message "Enable IDD driver button clicked."
 
-    # Create a confirmation dialog
-    $formConfirm = New-Object System.Windows.Forms.Form
-    $formConfirm.Text = "Enable IDD Driver"
-    $formConfirm.Size = New-Object System.Drawing.Size(400, 150)
-    $formConfirm.StartPosition = "CenterScreen"
-    $formConfirm.FormBorderStyle = "FixedDialog"
-    $formConfirm.MaximizeBox = $false
-    $formConfirm.MinimizeBox = $false
-    $formConfirm.TopMost = $true
+        # Create a confirmation dialog
+        $formConfirm = New-Object System.Windows.Forms.Form
+        $formConfirm.Text = "Enable IDD Driver"
+        $formConfirm.Size = New-Object System.Drawing.Size(400, 150)
+        $formConfirm.StartPosition = "CenterScreen"
+        $formConfirm.FormBorderStyle = "FixedDialog"
+        $formConfirm.MaximizeBox = $false
+        $formConfirm.MinimizeBox = $false
+        $formConfirm.TopMost = $true
+    
+        $label = New-Object System.Windows.Forms.Label
+        $label.Text = "Ensure that the IDD driver is installed before proceeding."
+        $label.AutoSize = $true
+        $label.Location = New-Object System.Drawing.Point(10,20)
+        $formConfirm.Controls.Add($label)
+    
+        $continueButton = New-Object System.Windows.Forms.Button
+        $continueButton.Text = "Continue"
+        $continueButton.Location = New-Object System.Drawing.Point(200, 60)
+        $continueButton.Add_Click({ $formConfirm.DialogResult = "OK"; $formConfirm.Close() })
+        $formConfirm.Controls.Add($continueButton)
+    
+        $cancelButton = New-Object System.Windows.Forms.Button
+        $cancelButton.Text = "Cancel"
+        $cancelButton.Location = New-Object System.Drawing.Point(290, 60)
+        $cancelButton.Add_Click({ $formConfirm.DialogResult = "Cancel"; $formConfirm.Close() })
+        $formConfirm.Controls.Add($cancelButton)
+    
+        $result = $formConfirm.ShowDialog()
+        if ($result -ne "OK") {
+            return
+        }
+        
+    try {
+        $displayPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
 
-    $label = New-Object System.Windows.Forms.Label
-    $label.Text = "Ensure that the IDD driver is installed before proceeding."
-    $label.AutoSize = $true
-    $label.Location = New-Object System.Drawing.Point(10,20)
-    $formConfirm.Controls.Add($label)
+        if (Test-Path $displayPath) {
+            Remove-ItemProperty -Path $displayPath -Name "layout-managers" -ErrorAction SilentlyContinue
+            Show-DebugMessage -Message "Removed 'layout-managers' from $displayPath."
+            Remove-ItemProperty -Path $displayPath -Name "framebuffer-readers" -ErrorAction SilentlyContinue
+            Show-DebugMessage -Message "Removed 'framebuffer-readers' from $displayPath."
+        } else {
+            Show-DebugMessage -Message "Registry path does not exist: $displayPath"
+        }
 
-    $continueButton = New-Object System.Windows.Forms.Button
-    $continueButton.Text = "Continue"
-    $continueButton.Location = New-Object System.Drawing.Point(200, 60)
-    $continueButton.Add_Click({ $formConfirm.DialogResult = "OK"; $formConfirm.Close() })
-    $formConfirm.Controls.Add($continueButton)
-
-    $cancelButton = New-Object System.Windows.Forms.Button
-    $cancelButton.Text = "Cancel"
-    $cancelButton.Location = New-Object System.Drawing.Point(290, 60)
-    $cancelButton.Add_Click({ $formConfirm.DialogResult = "Cancel"; $formConfirm.Close() })
-    $formConfirm.Controls.Add($cancelButton)
-
-    $result = $formConfirm.ShowDialog()
-    if ($result -ne "OK") {
-        return
+        Show-Warning
     }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("An error occurred while disabling IDD driver: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+# Button 22: Disable IDD driver
+$buttons[21].Add_Click({
+    Show-DebugMessage -Message "Disable IDD driver button clicked."
 
     try {
         # Create layout-managers key
@@ -1038,26 +1122,90 @@ $buttons[20].Add_Click({
     }
 })
 
-# Button 22: Disable IDD driver
-$buttons[21].Add_Click({
-    Show-DebugMessage -Message "Disable IDD driver button clicked."
-    try {
-        $displayPath = "Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\display"
+# Button 23: Advanced features
+$buttons[22].Add_Click({
+    Show-DebugMessage -Message "Advanced features button clicked."
 
-        if (Test-Path $displayPath) {
-            Remove-ItemProperty -Path $displayPath -Name "layout-managers" -ErrorAction SilentlyContinue
-            Show-DebugMessage -Message "Removed 'layout-managers' from $displayPath."
-            Remove-ItemProperty -Path $displayPath -Name "framebuffer-readers" -ErrorAction SilentlyContinue
-            Show-DebugMessage -Message "Removed 'framebuffer-readers' from $displayPath."
-        } else {
-            Show-DebugMessage -Message "Registry path does not exist: $displayPath"
+    # Create the advanced features window
+    $advancedForm = New-Object System.Windows.Forms.Form
+    $advancedForm.Text = "Advanced features"
+    $advancedForm.Size = New-Object System.Drawing.Size(1200, 350)
+    $advancedForm.StartPosition = "CenterScreen"
+    $advancedForm.FormBorderStyle = "FixedDialog"
+    $advancedForm.MaximizeBox = $false
+    $advancedForm.MinimizeBox = $false
+    $advancedForm.TopMost = $true
+
+    # Define button properties
+    $advButtonWidth = 1100
+    $advButtonHeight = 40
+    $advButtonMargin = 20
+
+    # Define advanced button texts
+    $advButtonTexts = @(
+        "Maximum performance, but without local access: Set IDD driver ON, then restart DCV Server",
+        "Optimized performance, but with local access: Set IDD driver OFF, then restart DCV Server",
+        "Return to main menu"
+    )
+
+    # Create advanced buttons
+    $advButtons = @()
+
+    for ($i = 0; $i -lt $advButtonTexts.Count; $i++) {
+        $advBtn = New-Object System.Windows.Forms.Button
+        $advBtn.Size = New-Object System.Drawing.Size($advButtonWidth, $advButtonHeight)
+
+        # Calculate X and Y positions
+        $x = $advButtonMargin
+        $y = $advButtonMargin + ($i * ($advButtonHeight + $advButtonMargin))
+
+        $advBtn.Location = New-Object System.Drawing.Point($x, $y)
+        $advBtn.Text = $advButtonTexts[$i]
+        $advBtn.Name = "AdvButton$i"
+
+        if ($advBtn.Text -eq "Return to main menu") {
+            $advBtn.BackColor = [System.Drawing.Color]::White
         }
 
-        Show-Warning
+        $advancedForm.Controls.Add($advBtn)
+        $advButtons += $advBtn
     }
-    catch {
-        [System.Windows.Forms.MessageBox]::Show("An error occurred while disabling IDD driver: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
+
+    # Advanced Button 1: Enable IDD driver and restart DCV Server
+    $advButtons[0].Add_Click({
+        Show-DebugMessage -Message "Advanced Button 1 clicked."
+        try {
+            Enable-IDDDriver
+            Restart-DCVServer -ServiceName $serviceName
+            [System.Windows.Forms.MessageBox]::Show("IDD driver enabled and DCV Server restarted.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("An error occurred: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+    # Advanced Button 2: Disable IDD driver and restart DCV Server
+    $advButtons[1].Add_Click({
+        Show-DebugMessage -Message "Advanced Button 2 clicked."
+        try {
+            Disable-IDDDriver
+            Restart-DCVServer -ServiceName $serviceName
+            [System.Windows.Forms.MessageBox]::Show("IDD driver disabled and DCV Server restarted.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("An error occurred: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+    # Advanced Button 3: Return to main menu
+    $advButtons[2].Add_Click({
+        Show-DebugMessage -Message "Return to main menu button clicked."
+        $advancedForm.Close()
+    })
+
+    # Display the advanced form
+    $advancedForm.Add_Shown({$advancedForm.Activate()})
+    [void]$advancedForm.ShowDialog()
 })
 
 # Display the form
