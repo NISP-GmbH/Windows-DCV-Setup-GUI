@@ -1129,7 +1129,7 @@ $buttons[22].Add_Click({
     # Create the advanced features window
     $advancedForm = New-Object System.Windows.Forms.Form
     $advancedForm.Text = "Advanced features"
-    $advancedForm.Size = New-Object System.Drawing.Size(1200, 350)
+    $advancedForm.Size = New-Object System.Drawing.Size(1200, 280)
     $advancedForm.StartPosition = "CenterScreen"
     $advancedForm.FormBorderStyle = "FixedDialog"
     $advancedForm.MaximizeBox = $false
