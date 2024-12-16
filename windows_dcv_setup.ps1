@@ -1143,8 +1143,8 @@ $buttons[22].Add_Click({
 
     # Define advanced button texts
     $advButtonTexts = @(
-        "Maximum performance: Enable IDD driver, blank local screen, then restarts DCV Server",
-        "Optimized performance: Disable IDD driver, unblank local screen, then restarts DCV Server",
+        "Enable IDD driver, blank local screen, then restarts DCV Server",
+        "Disable IDD driver, unblank local screen, then restarts DCV Server",
         "Return to main menu"
     )
 
