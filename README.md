@@ -10,6 +10,7 @@
 2. Make possible the script execution:
 ```bash
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+Unblock-File -Path .\windows_dcv_setup.ps1
 ```
 3. Execute the script:
 ```bash
